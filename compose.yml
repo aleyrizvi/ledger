@@ -1,0 +1,33 @@
+services:
+  api:
+    build:
+      target: builder
+    command: air --build.cmd "go build -o bin/api cmd/api/*.go" --build.bin "./bin/api"
+    volumes:
+      - .:/build
+    depends_on:
+      - migrate
+    ports:
+      - 3000:3000 #http port
+
+  pg:
+    image: postgres:17
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ledger
+    volumes:
+      - ./data/postgres:/var/lib/postgres/data
+    ports:
+      - 5432:5432
+
+  migrate:
+    image: amacneil/dbmate:latest
+    entrypoint: dbmate up
+    environment:
+      DATABASE_URL: postgres://postgres:password@pg:5432/ledger?sslmode=disable
+    volumes:
+      - ./migrations:/db/migrations
+    depends_on:
+      - pg
+    restart: "no"
