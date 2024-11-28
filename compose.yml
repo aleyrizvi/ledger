@@ -5,6 +5,11 @@ services:
     command: air --build.cmd "go build -o bin/api cmd/api/*.go" --build.bin "./bin/api"
     volumes:
       - .:/build
+    environment:
+      PORT: 3000
+      DBRW: postgres://postgres:password@pg:5432/ledger?sslmode=disable
+      DBRO: postgres://postgres:password@pg:5432/ledger?sslmode=disable
+
     depends_on:
       - migrate
     ports:

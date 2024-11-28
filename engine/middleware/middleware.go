@@ -2,22 +2,18 @@ package middleware
 
 import (
 	"net/http"
-
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 var (
-	allowedOrigins = []string{"*"}
-	allowedMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
-	allowedHeaders = []string{"Content-Type", "Authorization"}
+	allowedOrigins     = []string{"*"}
+	allowedMethods     = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	allowedHeaders     = []string{"Content-Type", "Authorization"}
+	allowedSourceTypes = []string{"game", "server", "payment"}
 )
 
 func Defaults() []func(http.Handler) http.Handler {
 	return []func(http.Handler) http.Handler{
-		chimiddleware.Logger,
-		chimiddleware.Recoverer,
-		chimiddleware.RequestID,
-		chimiddleware.AllowContentType("application/json"),
 		CORS(allowedOrigins, allowedMethods, allowedHeaders),
+		AllowedSourceTypes(allowedSourceTypes),
 	}
 }

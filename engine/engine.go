@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
-
-	"github.com/go-chi/chi/v5"
 )
 
 const (
@@ -16,10 +15,10 @@ const (
 
 // Config allows configuration for Engine constructor
 type Config struct {
-	Logger     *slog.Logger
-	Middleware []func(http.Handler) http.Handler
-	Route      []RouterConfig
-	HTTPPort   uint
+	Logger      *slog.Logger
+	Middlewares []func(http.Handler) http.Handler
+	Routes      []RouterConfig
+	HTTPPort    uint
 }
 
 type Engine struct {
@@ -38,16 +37,16 @@ func New(c *Config) *Engine {
 
 	e.logger.With("context", "engine.New").Info("New engine Initializing")
 
-	// create chi router
-	r := chi.NewRouter()
+	// create router
+	r := http.NewServeMux()
 
-	// apply all global middlewares. These are applied at the root fo the router and will run
-	// before any routes
-	r.Use(c.Middleware...)
-
-	// mount all the sub routers
-	for _, route := range c.Route {
-		r.Mount(route.Pattern, route.Router)
+	// // mount all the sub routers
+	for _, route := range c.Routes {
+		handler := route.Router
+		for _, mw := range c.Middlewares {
+			handler = applyMiddleware(handler, mw)
+		}
+		r.Handle(route.Pattern, http.StripPrefix(strings.TrimSuffix(route.Pattern, "/"), handler))
 	}
 
 	e.server = &http.Server{
@@ -61,5 +60,7 @@ func New(c *Config) *Engine {
 }
 
 func (e *Engine) Run() {
-	e.server.ListenAndServe()
+	if err := e.server.ListenAndServe(); err != nil {
+		e.logger.With("context", "engine.Run").Error(err.Error())
+	}
 }

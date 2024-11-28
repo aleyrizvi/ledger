@@ -13,10 +13,10 @@ import (
 
 type BaseHandler struct {
 	validator *validator.Validate
-	router    http.Handler
+	router    *http.ServeMux
 }
 
-func (h *BaseHandler) Init(routes []*Route) {
+func (h *BaseHandler) Init(routes []Route) {
 	// init validator
 	h.validator = validator.New()
 	h.validator.RegisterTagNameFunc(func(f reflect.StructField) string {
@@ -29,8 +29,7 @@ func (h *BaseHandler) Init(routes []*Route) {
 	r := http.NewServeMux()
 
 	for _, route := range routes {
-		pattern := fmt.Sprintf("%S %S", route.Method, route.Path)
-
+		pattern := fmt.Sprintf("%s %s", route.Method, route.Path)
 		r.Handle(pattern, applyMiddleware(http.HandlerFunc(route.Handler), route.Middleware...))
 	}
 
@@ -48,9 +47,10 @@ func (h *BaseHandler) ParseAndValidate(w http.ResponseWriter, r *http.Request, d
 	}
 
 	if err := h.validator.Struct(data); err != nil {
+		fmt.Println("hit the validator error")
 		h.Error(w, r, APIError{
 			Code:     http.StatusBadRequest,
-			Messages: nil,
+			Messages: h.FormatErrors(err),
 		})
 
 		return err
@@ -67,11 +67,7 @@ func (h *BaseHandler) JSON(w http.ResponseWriter, _ *http.Request, code int, dat
 		return nil
 	}
 
-	res := &Response{
-		Data: data,
-	}
-
-	return json.NewEncoder(w).Encode(res)
+	return json.NewEncoder(w).Encode(data)
 }
 
 func (h *BaseHandler) Error(w http.ResponseWriter, _ *http.Request, err error) error {
@@ -109,6 +105,8 @@ func (h *BaseHandler) FormatErrors(err error) []string {
 			err = fmt.Sprintf("[%s] must be a valid email", e.Field())
 		case "gte":
 			err = fmt.Sprintf("[%s] must be greater than or equal to %s", e.Field(), e.Param())
+		case "oneof":
+			err = fmt.Sprintf("[%s] must be one of [%s]", e.Field(), e.Param())
 		default:
 			err = fmt.Sprintf("[%s] invalid error", e.Field())
 		}
